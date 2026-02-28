@@ -4,12 +4,50 @@ import random
 import math
 import os
 import io
+import base64
 from datetime import date, datetime, timedelta
 from PIL import Image, ImageFilter, ImageEnhance
 import requests
 import numpy as np
 
-# FIXED Page config - 0 errors
+
+# THEME SWITCHER
+if "theme" not in st.session_state:
+    st.session_state.theme = "pink"
+theme_colors = {
+    "pink": {
+        "--primary-pink": "#ffb3d9",
+        "--light-pink": "#ffeef0",
+        "--soft-pink": "#ffcccb",
+        "--rose-pink": "#ffc1e3",
+        "--bubblegum": "#ff69b4",
+        "--heart-gold": "#ffd700"
+    },
+    "lavender": {
+        "--primary-pink": "#d1b3ff",
+        "--light-pink": "#f3e8ff",
+        "--soft-pink": "#e0c3fc",
+        "--rose-pink": "#e9d6ff",
+        "--bubblegum": "#b39ddb",
+        "--heart-gold": "#ffd700"
+    },
+    "gold": {
+        "--primary-pink": "#ffe066",
+        "--light-pink": "#fff9e3",
+        "--soft-pink": "#fff3bf",
+        "--rose-pink": "#ffe066",
+        "--bubblegum": "#ffd700",
+        "--heart-gold": "#ffb300"
+    }
+}
+st.sidebar.markdown("### 🎨 Theme")
+theme_choice = st.sidebar.radio("Choose a theme", ["pink", "lavender", "gold"], index=["pink", "lavender", "gold"].index(st.session_state.theme), horizontal=True)
+st.session_state.theme = theme_choice
+
+theme_vars = theme_colors[st.session_state.theme]
+theme_css = ":root {\n" + "\n".join([f"    {k}: {v};" for k, v in theme_vars.items()]) + "\n}"
+st.markdown(f"<style>{theme_css}</style>", unsafe_allow_html=True)
+
 st.set_page_config(
     page_title="💖 Happy Birthday Swetha! 💖",
     page_icon="💕",
@@ -17,22 +55,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# COMPLETE CUSTOM CSS - ALL ERRORS FIXED
+# ENHANCED CUSTOM CSS - FIXED GIFT + MUSIC + RESPONSIVE
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;600;700&family=Satisfy&family=Poppins:wght@200;300;400;500;600;700&display=swap');
-    
-    :root {
-        --primary-pink: #ffb3d9;
-        --light-pink: #ffeef0;
-        --soft-pink: #ffcccb;
-        --rose-pink: #ffc1e3;
-        --bubblegum: #ff69b4;
-        --heart-gold: #ffd700;
-        --white-glow: rgba(255,255,255,0.9);
-        --shadow-pink: rgba(255,182,217,0.3);
-    }
-    
+    /* ...existing code, but REMOVE the :root block above, so only the dynamic theme_css is used ... */
     section[data-testid="stAppViewContainer"] {
         background: linear-gradient(135deg, var(--light-pink) 0%, var(--primary-pink) 25%, var(--soft-pink) 50%, var(--rose-pink) 75%, var(--bubblegum) 100%);
         background-size: 400% 400%;
@@ -49,7 +76,7 @@ st.markdown("""
     
     .hearts-container {
         position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        pointer-events: none; z-index: 1; overflow: hidden;
+        pointer-events: none; z-index: 1000; overflow: hidden;
     }
     
     .blooming-heart {
@@ -108,28 +135,130 @@ st.markdown("""
         border-color: var(--bubblegum);
     }
     
-    .gift-box {
-        font-size: 8rem !important; cursor: pointer; transition: all 0.3s ease;
-        display: block; margin: 50px auto; animation: giftBounce 2s infinite;
+    /* FIXED GIFT BOX - WORKING VERSION */
+    .gift-container {
+        text-align: center;
+        position: relative;
+        display: inline-block;
+        margin: 50px auto;
+        z-index: 1001;
     }
-    
-    .gift-box:hover { transform: scale(1.1) rotate(5deg); filter: drop-shadow(0 0 30px var(--heart-gold)); }
-    
+    .gift-box {
+        font-size: 8rem !important; 
+        cursor: pointer; 
+        display: block; 
+        transition: all 0.3s ease;
+        position: relative; 
+        z-index: 10;
+        animation: giftBounce 2s infinite;
+    }
+    .gift-box:hover {
+        transform: scale(1.1);
+        filter: drop-shadow(0 0 30px var(--heart-gold));
+    }
+    .gift-box.open {
+        animation: shake 0.5s ease-in-out;
+        transform: scale(0.8);
+    }
+    @keyframes shake {
+        0%, 100% { transform: translateX(0) rotate(0deg); }
+        25% { transform: translateX(-15px) rotate(-5deg); }
+        75% { transform: translateX(15px) rotate(5deg); }
+    }
     @keyframes giftBounce {
         0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-        40% { transform: translateY(-20px); }
-        60% { transform: translateY(-10px); }
+        40% { transform: translateY(-25px); }
+        60% { transform: translateY(-12px); }
     }
-    
-    .gift-open { animation: giftOpen 2s ease-out forwards; }
-    @keyframes giftOpen { 0% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.3) rotate(10deg); } 100% { transform: scale(0) rotate(360deg); } }
+    .puppy {
+        position: absolute;
+        top: -150px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 7rem;
+        z-index: 20;
+        opacity: 0;
+        transition: all 0.6s ease;
+    }
+    .puppy.show {
+        animation: jump-out 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+    }
+    @keyframes jump-out {
+        0% {
+            opacity: 0;
+            transform: translateX(-50%) translateY(0) scale(0) rotate(-180deg);
+        }
+        50% {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-50px) scale(1.3) rotate(0deg);
+        }
+        100% {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-180px) scale(1) rotate(10deg);
+        }
+    }
+    .birthday-text {
+        font-family: "Dancing Script", cursive;
+        font-size: 3.5rem;
+        color: var(--bubblegum);
+        margin-top: 60px;
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    .birthday-text.show {
+        animation: fade-in-up 1s ease forwards 0.8s;
+    }
+    @keyframes fade-in-up {
+        to { opacity: 1; transform: translateY(0); }
+    }
     
     .puppy-surprise {
-        font-size: 4rem !important; animation: puppyDance 3s ease-in-out infinite;
-        text-align: center; margin: 50px 0;
+        font-size: 5rem !important; 
+        animation: puppyDance 2s ease-in-out infinite;
+        text-align: center; 
+        margin: 50px 0;
+    }
+    @keyframes puppyDance { 
+        0%, 100% { transform: rotate(-8deg) translateY(0); } 
+        25% { transform: rotate(0deg) translateY(-10px); }
+        75% { transform: rotate(8deg) translateY(-5px); }
     }
     
-    @keyframes puppyDance { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+    .music-player {
+        background: linear-gradient(145deg, rgba(255,255,255,0.9), var(--soft-pink));
+        padding: 25px;
+        border-radius: 25px;
+        border: 3px solid var(--bubblegum);
+        text-align: center;
+        margin: 20px 0;
+        box-shadow: 0 15px 40px rgba(255,105,180,0.4);
+    }
+    
+    .music-btn {
+        background: linear-gradient(45deg, var(--bubblegum), var(--heart-gold));
+        color: white !important;
+        border: none !important;
+        padding: 18px 40px !important;
+        font-size: 1.4rem !important;
+        font-weight: 600 !important;
+        border-radius: 40px !important;
+        cursor: pointer !important;
+        font-family: 'Poppins', sans-serif !important;
+        margin: 10px;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(255,105,180,0.4);
+    }
+    .music-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 40px rgba(255,105,180,0.6);
+    }
+    .music-btn.playing {
+        animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
     
     .wish-item {
         background: linear-gradient(45deg, var(--soft-pink), var(--rose-pink));
@@ -152,7 +281,9 @@ st.markdown("""
     
     @media (max-width: 768px) {
         .main-title { font-size: 4rem !important; }
-        .mega-btn { padding: 15px 30px !important; font-size: 1.3rem !important; }
+        .mega-btn, .music-btn { padding: 15px 30px !important; font-size: 1.3rem !important; }
+        .gift-box { font-size: 6rem !important; }
+        .puppy { font-size: 5rem !important; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -162,7 +293,7 @@ def init_session_state():
     defaults = {
         'page': 'home', 'hearts_count': 0, 'confetti_active': False, 'game_score': 0,
         'photo_likes': {}, 'visitors_count': 0, 'admin_logged': False, 'gift_opened': False,
-        'wishes': [], 'music_playing': False
+        'wishes': [], 'music_playing': False, 'gift_clicked': False, 'music_clicked': {}
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -170,7 +301,7 @@ def init_session_state():
 
 init_session_state()
 
-# Core Functions (ALL FIXED)
+# FIXED FUNCTIONS
 def create_blooming_hearts():
     st.markdown("""
     <div class="hearts-container" id="hearts-container">
@@ -192,16 +323,16 @@ def create_blooming_hearts():
         container.appendChild(heart);
         setTimeout(() => heart.remove(), 9000);
     }
-    setInterval(spawnHeart, 800);
+    setInterval(spawnHeart, 1200);
     </script>
     """, unsafe_allow_html=True)
 
 def launch_confetti_hearts():
     confetti_html = ""
-    for i in range(100):
+    for i in range(120):
         left_pos = random.randint(0, 95)
         heart_type = random.choice(['💖','💕','💗','💝','🌸','✨'])
-        confetti_html += f'<div style="position: fixed; left: {left_pos}%; top: -10%; font-size: 25px; pointer-events: none; z-index: 9999; animation: confettiFall 5s linear forwards {i*0.05}s;">{heart_type}</div>'
+        confetti_html += f'<div style="position: fixed; left: {left_pos}%; top: -10%; font-size: 22px; pointer-events: none; z-index: 9999; animation: confettiFall 6s linear forwards {i*0.04}s;">{heart_type}</div>'
     st.markdown(f"""
     <style>
     @keyframes confettiFall {{ 0% {{ transform: translateY(-100vh) rotate(0deg); opacity: 1; }} 100% {{ transform: translateY(100vh) rotate(720deg); opacity: 0; }} }}
@@ -210,29 +341,115 @@ def launch_confetti_hearts():
     """, unsafe_allow_html=True)
 
 def birthday_countdown(target_date=None):
-    if target_date is None: target_date = date(2026, 3, 1)
-    now = date.today()
-    if target_date < now: target_date = date(now.year + 1, target_date.month, target_date.day)
-    delta = target_date - now
-    seconds = int((datetime.combine(target_date, datetime.min.time()) - datetime.combine(now, datetime.min.time())).total_seconds())
+    if target_date is None: 
+        target_date = date(2026, 3, 1)
+    now = datetime.now()
+    target_datetime = datetime.combine(target_date, datetime.min.time())
+    if target_datetime < now: 
+        target_datetime = datetime(now.year + 1, target_date.month, target_date.day)
     
-    col1, col2, col3, col4 = st.columns(4)
-    with col1: st.metric("💖 Days", delta.days, delta.days - 1)
-    with col2: st.metric("⏰ Hours", seconds//3600, -1)
-    with col3: st.metric("⭐ Minutes", (seconds%3600)//60, 1)
-    with col4: st.metric("💕 Seconds", seconds%60, -2)
+    delta = target_datetime - now
+    days = delta.days
+    hours = delta.seconds // 3600
+    minutes = (delta.seconds % 3600) // 60
+    seconds = delta.seconds % 60
+    
+    # Animated countdown timer using flip effect
+    st.markdown("""
+    <style>
+    .flip-timer { display: flex; justify-content: center; gap: 18px; margin-bottom: 18px; }
+    .flip-unit { background: var(--soft-pink); border-radius: 18px; padding: 18px 12px; box-shadow: 0 2px 12px var(--shadow-pink); text-align: center; min-width: 70px; }
+    .flip-label { font-size: 1.1rem; color: var(--bubblegum); margin-bottom: 6px; }
+    .flip-num { font-family: 'Poppins', sans-serif; font-size: 2.8rem; color: var(--heart-gold); font-weight: bold; display: inline-block; animation: flipIn 0.7s; }
+    @keyframes flipIn { 0% { transform: rotateX(90deg); opacity: 0; } 100% { transform: rotateX(0deg); opacity: 1; } }
+    </style>
+    """, unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class='flip-timer'>
+        <div class='flip-unit'><div class='flip-label'>💖 Days</div><div class='flip-num'>{days}</div></div>
+        <div class='flip-unit'><div class='flip-label'>⏰ Hours</div><div class='flip-num'>{hours:02d}</div></div>
+        <div class='flip-unit'><div class='flip-label'>⭐ Minutes</div><div class='flip-num'>{minutes:02d}</div></div>
+        <div class='flip-unit'><div class='flip-label'>💕 Seconds</div><div class='flip-num'>{seconds:02d}</div></div>
+    </div>
+    """, unsafe_allow_html=True)
 
-def load_photos(folder="photos"):
+# FIXED PHOTOS - CLOUDFLARE/STREAMLIT DEPLOYMENT READY
+def load_photos():
+    # Always include these default local photos (if present)
+    # Use public URLs for default photos so everyone can see them
+    default_public_photos = [
+        # swetha5.jpg from Dropbox
+        "https://www.dropbox.com/scl/fi/lrafmg8j2s0edcwybrq73/swetha5.jpg?rlkey=16xl4ef45bmnm21xans8a924r&st=kq1ycxsx&raw=1",
+        # swetha2.jpg from Dropbox (latest link)
+        "https://www.dropbox.com/scl/fi/vt8i4q8cdcz3xexk9f9si/swetha2.jpg?rlkey=oru2f0do8wp1qqjnu7pvov2ry&st=7pk35ir3&raw=1",
+        #
+        "https://www.dropbox.com/scl/fi/lrafmg8j2s0edcwybrq73/swetha5.jpg?rlkey=16xl4ef45bmnm21xans8a924r&st=kq1ycxsx&raw=1",
+        #  Add more links here as needed
+        "https://www.dropbox.com/scl/fi/94avuwj1ddd5v2wn14b1n/me-and-divi.jpeg?rlkey=8bvptadhdy7vuvv12pawnwe3g&st=1x7igyxh&raw=1",
+    ]
     photos = []
-    if os.path.exists(folder):
-        for file in os.listdir(folder):
+    # Add all images in the folder (if any)
+    if os.path.exists("photos"):
+        for file in os.listdir("photos"):
             if file.lower().endswith(('.png', '.jpg', '.jpeg')):
-                photos.append(os.path.join(folder, file))
+                path = f"photos/{file}"
+                if path not in photos:
+                    photos.append(path)
+    # Always include public URLs for default photos
+    for url in default_public_photos:
+        if url not in photos:
+            photos.append(url)
+    # Fallback to online photos for deployment
     if not photos:
-        photos = ["https://picsum.photos/400/400?random=1", "https://picsum.photos/400/400?random=2", "https://picsum.photos/400/400?random=3", "https://picsum.photos/400/400?random=4"]
+        photos = [
+            "https://images.unsplash.com/photo-1516589178581-6cd7838eb79f?w=400&h=400&fit=crop",
+            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop",
+            
+        ]
     return photos
 
-# 12-PAGE NAVIGATION
+# MUSIC FUNCTION WITH ARZ KIYA
+def create_music_section():
+    st.markdown('<h1 class="main-title">🎵 Birthday Music Corner 🎶</h1>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🎉 Happy Birthday Song!", key="birthday_song"):
+            st.balloons()
+            st.markdown('<div style="font-size: 2rem; color: var(--bubblegum); text-align: center;">🎵 Happy Birthday to you! 🎵<br>🎵 Happy Birthday dear Swetha! 🎵<br>🎵 Happy Birthday to you! 🎵</div>', unsafe_allow_html=True)
+    
+    with col2:
+        music_key = "arz_kiya"
+        # Ensure session state is initialized
+        if "music_clicked" not in st.session_state:
+            st.session_state.music_clicked = {}
+        is_playing = st.session_state.music_clicked.get(music_key, False)
+
+        # Button to toggle music
+        if st.button("🎸 Blue Sky 💖", key="btn_arz_kiya", help="Click to play in background"):
+            st.session_state.music_clicked[music_key] = not is_playing
+            st.rerun()
+
+        if is_playing:
+            # Correct YouTube embed URL
+            video_id = "IpFX2vq8HKw"
+            embed_url = f"https://www.youtube.com/embed/{video_id}?autoplay=1&loop=1&playlist={video_id}"
+            st.markdown(f"""
+                <div class="music-player">
+                    <div style='font-size: 1.2rem; color: #FFC0CB;'>🎵 Now Playing: Arz Kiya... 💖</div>
+                    <iframe width="280" height="80" src="{embed_url}" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                    <div style='font-size:0.9rem;color:#888;'>If audio doesn't start, click the play button in the player above.</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+    
+    with col3:
+        if st.button("💃 Party Dance Mix!", key="dance_mix"):
+            st.snow()
+            st.success("🎧 Party beats ON! 💃🕺")
+
+# Sidebar
 st.sidebar.markdown("""
 <div style='padding: 20px; background: linear-gradient(45deg, var(--bubblegum), var(--primary-pink)); border-radius: 20px; margin: 10px 0; text-align: center;'>
     <h2 style='color: white; font-family: "Dancing Script", cursive; font-size: 1.8rem;'>💖 Swetha's Birthday Palace 💖</h2>
@@ -241,7 +458,7 @@ st.sidebar.markdown("""
 
 pages = {
     "🏠 Home Sweet Home": "home", "💕 Love Messages": "messages", "📸 Memory Gallery": "gallery",
-    "🎂 Birthday Games": "games", "🎁 Surprise Gifts": "gifts",
+    "🎂 Birthday Games": "games",
     "🎵 Music Corner": "music", "📊 Stats & Facts": "stats", "💖 Our Timeline": "timeline",
     "🎈 Virtual Party": "party", "🌟 Admin Control": "admin", "💌 Secret Notes": "secrets"
 }
@@ -254,7 +471,7 @@ st.sidebar.metric("💖 Hearts Bloomed", st.session_state.hearts_count)
 
 st.markdown('<div style="padding: 20px;">', unsafe_allow_html=True)
 
-# ALL 12 PAGES - FULLY WORKING
+# MAIN PAGES
 if st.session_state.page == "home":
     create_blooming_hearts()
     st.markdown('<h1 class="main-title">Happy Birthday Swetha! 🎂💖✨</h1>', unsafe_allow_html=True)
@@ -304,53 +521,19 @@ elif st.session_state.page == "gallery":
         cols = st.columns(cols_per_row)
         for j, photo_path in enumerate(photos[i:i+cols_per_row]):
             with cols[j]:
-                if photo_path.startswith('http'):
-                    st.image(photo_path, width=280, caption=f"💖 Memory #{i+j+1}")
-                else:
-                    st.image(photo_path, width=280, caption=f"💖 Memory #{i+j+1}")
+                st.image(photo_path, width=280, caption=f"💖 Memory #{i+j+1}")
 
 elif st.session_state.page == "games":
     st.markdown('<h1 class="main-title">🎮 Birthday Fun Zone! 🎉</h1>', unsafe_allow_html=True)
     if st.button("🎲 Spin Birthday Wheel!", key="wheel"):
-        gifts = ["💝A journey Together  ","A day with me"]
+        gifts = ["💝A journey Together ", "A day with me"]
         st.balloons()
         st.success(f"You won: **{random.choice(gifts)}** 🎊")
 
-elif st.session_state.page == "gifts":
-    st.markdown('<h1 class="main-title">🎁 Surprise Gifts for Swetha! 🎀</h1>', unsafe_allow_html=True)
-    if not st.session_state.get('gift_opened', False):
-        st.markdown("""
-        <div style='text-align: center;'>
-            <div class="gift-box" onclick="this.classList.add('gift-open'); setTimeout(() => { this.innerHTML = '🐶<br><div style=\\"font-size: 2rem; color: var(--bubblegum); margin-top: 20px;\\">Happy Birthday Swetha!</div>'; this.className = 'puppy-surprise'; }, 2000);">🎁</div>
-            <p style='font-size: 2rem; color: var(--bubblegum); margin-top: 20px;'>Click the gift box! 💖</p>
-        </div>
-        <script>window.giftOpened = true;</script>
-        """, unsafe_allow_html=True)
-        st.session_state.gift_opened = True
-    else:
-        st.markdown("""
-        <div class="puppy-surprise">
-            🐶<br><div style='font-family: "Dancing Script", cursive; font-size: 3rem; color: var(--bubblegum); margin-top: 20px;'>Happy Birthday Swetha! 🎂💖</div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.success("🐕 Puppy delivered your birthday message! 💕")
-        
 
 
 elif st.session_state.page == "music":
-    st.markdown('<h1 class="main-title">🎵 Birthday Music Corner 🎶</h1>', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("🎉 Happy Birthday Song!", key="birthday_song"):
-            st.balloons()
-            st.markdown('<div style="font-size: 2rem; color: var(--bubblegum); text-align: center;">🎵 Happy Birthday to you! 🎵<br>🎵 Happy Birthday dear Swetha! 🎵<br>🎵 Happy Birthday to you! 🎵</div>', unsafe_allow_html=True)
-    with col2:
-        if st.button("💃 Party Dance Mix!", key="dance_mix"):
-            st.snow()
-            st.success("🎧 Party beats ON! 💃🕺")
-    with col3:
-        if st.button("🌟 Celebration Playlist!", key="playlist"):
-            st.info("🎼 Full party playlist loaded! 🎊")
+    create_music_section()
 
 elif st.session_state.page == "stats":
     st.markdown('<h1 class="main-title">📊 Swetha Birthday Stats 📈</h1>', unsafe_allow_html=True)
@@ -363,7 +546,7 @@ elif st.session_state.page == "stats":
     st.markdown("""
     <div class="pink-card" style='text-align: center;'>
         <h3 style='color: var(--bubblegum);'>🎂 Swetha Fun Facts 🎂</h3>
-        <p style='color: var(--primary-pink); font-size: 1.2rem;'>Egoistic! 🌟 |Rakshasiiii! 😍 |  Short girl | But very caring !😍</p>
+        <p style='color: var(--primary-pink); font-size: 1.2rem;'>Egoistic! 🌟 |Rakshasiiii! 😍 | Short girl | But very caring !😍</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -394,7 +577,7 @@ elif st.session_state.page == "party":
             st.success("🎉 PARTY MODE FULL ON! 🎉")
     with col2:
         if st.button("🍰 Cut the Cake!", key="cake_cut"):
-            st.success("🎂 Cake sliced! receive it on 3 march  🍰")
+            st.success("🎂 Cake sliced! receive it on 3 march 🍰")
     with col3:
         if st.button("🎤 Sing Together!", key="sing_along"):
             st.markdown('<div style="font-size: 2rem; color: var(--bubblegum); text-align: center;">🎵 Happy Birthday dear Swetha... 🎵</div>', unsafe_allow_html=True)
@@ -422,7 +605,7 @@ elif st.session_state.page == "admin":
             st.success("✅ Reset complete!")
             st.rerun()
     else:
-        st.warning("🚫 Password: swethaforever123")
+        st.warning("🚫 Password: swethaforever12")
 
 elif st.session_state.page == "secrets":
     st.markdown('<h1 class="main-title">💌 Secret Notes for Swetha 💕</h1>', unsafe_allow_html=True)
